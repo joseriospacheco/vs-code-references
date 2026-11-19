@@ -21,6 +21,12 @@ The count excludes the symbol's declaration by default. HTML element tags do not
 
 Reference counts appear above supported symbols in the editor. Click a count to open the matching references.
 
+### C#
+
+![A single reference count above each C# declaration](images/csharp-references.png)
+
+When the active C# extension provides its own reference CodeLens, VS Code References leaves those counts visible and skips its own to avoid duplicates.
+
 ### Java
 
 ![Reference count for a Java method](images/java-references.png)
@@ -64,6 +70,7 @@ Configure VS Code References in **Settings** or add these options to your `setti
 
 ## Language support
 
+- **C#:** use a language extension that provides symbols and references. When Microsoft's C# extension has reference CodeLens enabled, VS Code References defers to it automatically. If those native counts are disabled, VS Code References provides its own counts.
 - **Java:** install **Language Support for Java by Red Hat** (`redhat.java`) and let its language server finish importing the project.
 - **PHP/Laravel:** install **PHP Intelephense** (`bmewburn.vscode-intelephense-client`) and let it index the project.
 - **Angular/TypeScript:** use VS Code's built-in **TypeScript and JavaScript Language Features**. **Angular Language Service** adds Angular-specific support.
