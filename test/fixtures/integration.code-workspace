@@ -1,0 +1,16 @@
+{
+  "folders": [
+    { "path": "typescript" },
+    { "path": "java" },
+    { "path": "php" }
+  ],
+  "settings": {
+    "security.workspace.trust.enabled": false,
+    "java.server.launchMode": "Standard",
+    "java.import.gradle.enabled": false,
+    "java.import.maven.enabled": false,
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "editor.codeLens": true,
+    "vscodeReferences.enabled": true
+  }
+}

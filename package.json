@@ -1,0 +1,65 @@
+{
+  "name": "reflens",
+  "displayName": "VS Code References",
+  "description": "Shows inline reference counts across VS Code languages with symbol and reference providers.",
+  "version": "0.0.1",
+  "icon": "images/icon.png",
+  "publisher": "local-dev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/joseriospacheco/vs-code-references.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "vscodeReferences.refresh", "title": "VS Code References: Refresh" },
+      { "command": "vscodeReferences.diagnose", "title": "VS Code References: Diagnose Active File" }
+    ],
+    "configuration": {
+      "title": "VS Code References",
+      "properties": {
+        "vscodeReferences.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show reference counts above symbols."
+        },
+        "vscodeReferences.languages": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Language IDs to include. An empty list includes every language with a reference provider."
+        },
+        "vscodeReferences.includeDeclaration": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include the symbol declaration in the displayed count when the language provider returns it."
+        },
+        "vscodeReferences.maxSymbolsPerFile": {
+          "type": "number",
+          "default": 150,
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Maximum number of symbols to scan in each file."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "node --test test/regression.cjs",
+    "package": "vsce package --out VS-Code-References-0.0.1.vsix --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}

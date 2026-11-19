@@ -1,0 +1,10 @@
+.vscode/**
+.vscode-test/**
+test/**
+scripts/**
+src/**
+tsconfig.json
+.gitignore
+out/**/*.map
+*.vsix
+Logo de VS Code con flecha azul y blanca.png
