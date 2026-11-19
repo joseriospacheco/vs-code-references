@@ -142,6 +142,21 @@ test('duplicate symbols at one source position produce only one location', () =>
   assert.equal(locations.length, 1);
 });
 
+test('same-named symbols at different columns on one declaration line are consolidated', () => {
+  const doc = document('class Box { Box() {} }');
+  const typeStart = doc.getText().indexOf('Box');
+  const constructorStart = doc.getText().indexOf('Box', typeStart + 1);
+  const type = symbol(doc, 'Box', SymbolKind.Class,
+    new Range(0, typeStart, 0, typeStart + 3), new Range(0, 0, 0, doc.getText().length), [
+      symbol(doc, 'Box()', SymbolKind.Constructor,
+        new Range(0, constructorStart, 0, constructorStart + 3),
+        new Range(0, constructorStart, 0, doc.getText().length))
+    ]);
+  const locations = [];
+  harness().collectSymbols(doc, [type], locations, 150);
+  assert.equal(locations.length, 1);
+});
+
 test('namespace symbols do not get reference lenses', () => {
   const doc = document('namespace EduNet { class Store {} }');
   const classStart = doc.getText().indexOf('Store');

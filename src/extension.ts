@@ -286,7 +286,10 @@ function collectSymbolsInto(
     const isObjectLiteralMember = (entry.kind === vscode.SymbolKind.Property || entry.kind === vscode.SymbolKind.Key) &&
       parentKind !== vscode.SymbolKind.Class && parentKind !== vscode.SymbolKind.Interface &&
       parentKind !== vscode.SymbolKind.Struct && parentKind !== vscode.SymbolKind.Enum;
-    const key = `${uri.toString()}:${range.start.line}:${range.start.character}`;
+    // Some language providers report multiple symbols for one declaration
+    // (for example, a type and its primary constructor) at different columns.
+    const symbolIdentity = name.split('(')[0].trim();
+    const key = `${uri.toString()}:${range.start.line}:${symbolIdentity}`;
     const isParameter = parameterRanges.some(parameterRange => parameterRange.contains(range.start));
     if (!isParameter && entry.kind !== vscode.SymbolKind.Namespace &&
         !isObjectLiteralMember && !seen.has(key) && uri.toString() === document.uri.toString() &&
