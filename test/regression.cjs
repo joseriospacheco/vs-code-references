@@ -142,6 +142,19 @@ test('duplicate symbols at one source position produce only one location', () =>
   assert.equal(locations.length, 1);
 });
 
+test('namespace symbols do not get reference lenses', () => {
+  const doc = document('namespace EduNet { class Store {} }');
+  const classStart = doc.getText().indexOf('Store');
+  const namespace = symbol(doc, 'EduNet', SymbolKind.Namespace,
+    new Range(0, 10, 0, 16), new Range(0, 0, 0, doc.getText().length), [
+      symbol(doc, 'Store', SymbolKind.Class,
+        new Range(0, classStart, 0, classStart + 5))
+    ]);
+  const locations = [];
+  harness().collectSymbols(doc, [namespace], locations, 150);
+  assert.deepEqual(locations.map(location => location.range.start.character), [classStart]);
+});
+
 test('function parameters are excluded while local variables remain eligible', () => {
   const doc = document('function find(param: string) {\n  const local = param;\n}\n');
   const functionName = doc.getText().indexOf('find');

@@ -288,7 +288,8 @@ function collectSymbolsInto(
       parentKind !== vscode.SymbolKind.Struct && parentKind !== vscode.SymbolKind.Enum;
     const key = `${uri.toString()}:${range.start.line}:${range.start.character}`;
     const isParameter = parameterRanges.some(parameterRange => parameterRange.contains(range.start));
-    if (!isParameter && !isObjectLiteralMember && !seen.has(key) && uri.toString() === document.uri.toString() &&
+    if (!isParameter && entry.kind !== vscode.SymbolKind.Namespace &&
+        !isObjectLiteralMember && !seen.has(key) && uri.toString() === document.uri.toString() &&
         !isAnnotationSymbol(name) &&
         !hasLeadingOverride(document, range.start.line) &&
         !isHtmlTagName(document, range.start)) {
