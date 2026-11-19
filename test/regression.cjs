@@ -142,6 +142,23 @@ test('duplicate symbols at one source position produce only one location', () =>
   assert.equal(locations.length, 1);
 });
 
+test('function parameters are excluded while local variables remain eligible', () => {
+  const doc = document('function find(param: string) {\n  const local = param;\n}\n');
+  const functionName = doc.getText().indexOf('find');
+  const parameterName = doc.getText().indexOf('param');
+  const localName = doc.lineAt(1).text.indexOf('local');
+  const method = symbol(doc, 'find', SymbolKind.Function,
+    new Range(0, functionName, 0, functionName + 4), new Range(0, 0, 2, 1), [
+      symbol(doc, 'param', SymbolKind.Variable,
+        new Range(0, parameterName, 0, parameterName + 5)),
+      symbol(doc, 'local', SymbolKind.Variable,
+        new Range(1, localName, 1, localName + 5))
+    ]);
+  const locations = [];
+  harness().collectSymbols(doc, [method], locations, 150);
+  assert.deepEqual(locations.map(location => location.range.start.line), [0, 1]);
+});
+
 test('Java annotations do not suppress unrelated annotated declarations', () => {
   const doc = document('@Autowired\nprivate Service service;\n', 'Store.java');
   const field = symbol(doc, 'service', SymbolKind.Field, new Range(1, 16, 1, 23), new Range(0, 0, 1, 24));

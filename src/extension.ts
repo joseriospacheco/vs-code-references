@@ -154,7 +154,111 @@ function collectSymbols(
   limit: number
 ): void {
   const seen = new Set<string>();
-  collectSymbolsInto(document, symbols, locations, limit, seen);
+  const parameterRanges: vscode.Range[] = [];
+  collectCallableParameterRanges(document, symbols, parameterRanges);
+  collectSymbolsInto(document, symbols, locations, limit, seen, parameterRanges);
+}
+
+function collectCallableParameterRanges(
+  document: vscode.TextDocument,
+  symbols: Array<vscode.DocumentSymbol | vscode.SymbolInformation>,
+  parameterRanges: vscode.Range[]
+): void {
+  for (const entry of symbols) {
+    const uri = 'location' in entry ? entry.location.uri : document.uri;
+    if (uri.toString() !== document.uri.toString()) continue;
+
+    const symbolRange = 'selectionRange' in entry
+      ? entry.selectionRange
+      : identifierRange(document, entry.name, entry.location.range);
+    if (isCallableSymbol(entry.kind)) {
+      const declarationRange = 'range' in entry ? entry.range : entry.location.range;
+      const parameterRange = findCallableParameterRange(document, symbolRange, declarationRange);
+      if (parameterRange) parameterRanges.push(parameterRange);
+    }
+
+    if ('children' in entry) collectCallableParameterRanges(document, entry.children, parameterRanges);
+  }
+}
+
+function isCallableSymbol(kind: vscode.SymbolKind): boolean {
+  return kind === vscode.SymbolKind.Function ||
+    kind === vscode.SymbolKind.Method ||
+    kind === vscode.SymbolKind.Constructor;
+}
+
+function findCallableParameterRange(
+  document: vscode.TextDocument,
+  symbolRange: vscode.Range,
+  declarationRange: vscode.Range
+): vscode.Range | undefined {
+  const source = document.getText(new vscode.Range(symbolRange.end, declarationRange.end));
+  const bounds = findParameterParentheses(source);
+  if (!bounds) return undefined;
+
+  const sourceStart = document.offsetAt(symbolRange.end);
+  return new vscode.Range(
+    document.positionAt(sourceStart + bounds.open + 1),
+    document.positionAt(sourceStart + bounds.close)
+  );
+}
+
+function findParameterParentheses(source: string): { open: number; close: number } | undefined {
+  let open = -1;
+  let depth = 0;
+  let quote = '';
+  let lineComment = false;
+  let blockComment = false;
+
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index];
+    const next = source[index + 1];
+
+    if (lineComment) {
+      if (character === '\n') lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      if (character === '*' && next === '/') {
+        blockComment = false;
+        index++;
+      }
+      continue;
+    }
+    if (quote) {
+      if (character === '\\') index++;
+      else if (character === quote) quote = '';
+      continue;
+    }
+
+    if (character === '/' && next === '/') {
+      lineComment = true;
+      index++;
+      continue;
+    }
+    if (character === '/' && next === '*') {
+      blockComment = true;
+      index++;
+      continue;
+    }
+    if (character === '"' || character === "'" || character === '`') {
+      quote = character;
+      continue;
+    }
+
+    if (open < 0) {
+      if (character === '{' || character === ';') return undefined;
+      if (character === '(') {
+        open = index;
+        depth = 1;
+      }
+      continue;
+    }
+
+    if (character === '(') depth++;
+    else if (character === ')' && --depth === 0) return { open, close: index };
+  }
+  return undefined;
 }
 
 function collectSymbolsInto(
@@ -163,6 +267,7 @@ function collectSymbolsInto(
   locations: vscode.Location[],
   limit: number,
   seen: Set<string>,
+  parameterRanges: vscode.Range[],
   parentKind?: vscode.SymbolKind
 ): void {
   for (const entry of symbols) {
@@ -182,7 +287,8 @@ function collectSymbolsInto(
       parentKind !== vscode.SymbolKind.Class && parentKind !== vscode.SymbolKind.Interface &&
       parentKind !== vscode.SymbolKind.Struct && parentKind !== vscode.SymbolKind.Enum;
     const key = `${uri.toString()}:${range.start.line}:${range.start.character}`;
-    if (!isObjectLiteralMember && !seen.has(key) && uri.toString() === document.uri.toString() &&
+    const isParameter = parameterRanges.some(parameterRange => parameterRange.contains(range.start));
+    if (!isParameter && !isObjectLiteralMember && !seen.has(key) && uri.toString() === document.uri.toString() &&
         !isAnnotationSymbol(name) &&
         !hasLeadingOverride(document, range.start.line) &&
         !isHtmlTagName(document, range.start)) {
@@ -190,7 +296,7 @@ function collectSymbolsInto(
       locations.push(new vscode.Location(uri, new vscode.Range(range.start, range.start)));
     }
 
-    if ('children' in entry) collectSymbolsInto(document, entry.children, locations, limit, seen, entry.kind);
+    if ('children' in entry) collectSymbolsInto(document, entry.children, locations, limit, seen, parameterRanges, entry.kind);
   }
 }
 
