@@ -24,8 +24,11 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.workspace.onDidSaveTextDocument(scheduleRefresh),
     vscode.window.onDidChangeActiveTextEditor(refreshForLanguageServer),
+    vscode.extensions.onDidChange(scheduleRefresh),
     vscode.workspace.onDidChangeConfiguration(event => {
-      if (event.affectsConfiguration('vscodeReferences')) {
+      if (event.affectsConfiguration('vscodeReferences') ||
+          event.affectsConfiguration('dotnet.codeLens') ||
+          event.affectsConfiguration('csharp.referencesCodeLens')) {
         scheduleRefresh();
       }
     })
@@ -100,6 +103,7 @@ async function provideCodeLenses(
   const documentVersion = document.version;
   const config = vscode.workspace.getConfiguration('vscodeReferences', document.uri);
   if (!config.get<boolean>('enabled', true)) return [];
+  if (usesCSharpReferenceLenses(document)) return [];
 
   const allowedLanguages = config.get<string[]>('languages', []);
   if (allowedLanguages.length > 0 && !allowedLanguages.includes(document.languageId)) return [];
@@ -115,6 +119,8 @@ async function provideCodeLenses(
     return [];
   }
   if (!symbols?.length || token.isCancellationRequested) return [];
+  // The language extension may have activated while symbols were requested.
+  if (usesCSharpReferenceLenses(document)) return [];
 
   const locations: vscode.Location[] = [];
   collectSymbols(document, symbols, locations, maxSymbols);
@@ -145,6 +151,17 @@ async function provideCodeLenses(
 
   if (token.isCancellationRequested || document.version !== documentVersion) return [];
   return lenses.sort((a, b) => a.range.start.compareTo(b.range.start));
+}
+
+function usesCSharpReferenceLenses(document: vscode.TextDocument): boolean {
+  if (document.languageId !== 'csharp' ||
+      !vscode.extensions.getExtension('ms-dotnettools.csharp')?.isActive) return false;
+  const scope = { uri: document.uri, languageId: document.languageId };
+  const modern = vscode.workspace.getConfiguration('dotnet.codeLens', scope);
+  const legacy = vscode.workspace.getConfiguration('csharp.referencesCodeLens', scope);
+  const explicit = modern.inspect<boolean>('enableReferencesCodeLens');
+  const configured = explicit?.workspaceFolderValue ?? explicit?.workspaceValue ?? explicit?.globalValue;
+  return configured ?? legacy.get<boolean>('enabled', modern.get<boolean>('enableReferencesCodeLens', true));
 }
 
 function collectSymbols(

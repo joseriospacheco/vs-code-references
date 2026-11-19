@@ -79,12 +79,13 @@ function symbol(doc, name, kind, selectionRange, range = selectionRange, childre
   return result;
 }
 
-function harness(executeCommand = async () => []) {
+function harness(executeCommand = async () => [], overrides = {}) {
   const vscode = {
     Position, Range, Location, CodeLens, EventEmitter, SymbolKind,
     window: { createOutputChannel: () => ({ appendLine() {}, dispose() {} }) },
     workspace: { getConfiguration: () => ({ get: (_key, fallback) => fallback }) },
-    commands: { executeCommand }
+    commands: { executeCommand },
+    ...overrides
   };
   const filename = path.join(__dirname, '..', 'src', 'extension.ts');
   // Expose private functions only in this in-memory compilation; no test-only
@@ -100,6 +101,23 @@ function harness(executeCommand = async () => []) {
   vm.runInNewContext(compiled, context, { filename });
   return context.exports.__regression;
 }
+
+test('C# yields to active native references and resumes when they are disabled or absent', async () => {
+  for (const [active, enabled, expected] of [[true, true, 0], [true, false, 1], [false, true, 1]]) {
+    const doc = document('class Store {}');
+    doc.languageId = 'csharp';
+    const api = harness(async command => command === 'vscode.executeDocumentSymbolProvider'
+      ? [symbol(doc, 'Store', SymbolKind.Class, new Range(0, 6, 0, 11))] : [], {
+      extensions: { getExtension: () => active ? { isActive: true } : undefined },
+      workspace: { getConfiguration: section => ({
+        get: (key, fallback) => section === 'dotnet.codeLens' ? enabled : fallback,
+        inspect: () => ({ globalValue: enabled })
+      }) }
+    });
+    const lenses = await api.provideCodeLenses(doc, { isCancellationRequested: false });
+    assert.equal(lenses.length, expected);
+  }
+});
 
 test('hybrid symbol results retain nested methods and identifier positions', () => {
   const doc = document('export class Store {\n  load(): void {}\n}\n');
